@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>セット追従課題（ランダムセット / クリック対応）</title>
+  <style>
+    :root{--bg:#0b1020;--text:#e9eefc;--muted:#aeb8da;--line:rgba(255,255,255,.10);--ok:#36d399;--ng:#ff5c7a;}
+    *{box-sizing:border-box}
+    body{
+      margin:0;min-height:100svh;color:var(--text);
+      font-family:system-ui,"Noto Sans JP","Yu Gothic",sans-serif;
+      background:
+        radial-gradient(1200px 800px at 30% 10%, rgba(95,140,255,.20), transparent 60%),
+        radial-gradient(900px 650px at 80% 60%, rgba(54,211,153,.10), transparent 60%),
+        var(--bg);
+    }
+    .wrap{width:min(980px,100%); margin:0 auto; padding:10px 14px 14px;}
+
+    /* 上部：進捗＋経過時間 */
+    .topbar{
+      position:sticky; top:0; z-index:50;
+      padding:8px 0 8px;
+      background: linear-gradient(180deg, rgba(11,16,32,.95), rgba(11,16,32,.72) 75%, rgba(11,16,32,0));
+      backdrop-filter: blur(8px);
+    }
+    .topcard{
+      border-radius:14px;
+      background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.03));
+      border:1px solid var(--line);
+      box-shadow:0 14px 40px rgba(0,0,0,.26);
+      padding:10px 12px;
+      display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+    }
+    .pill{
+      display:flex; align-items:center; gap:8px;
+      padding:7px 9px; border-radius:999px;
+      border:1px solid var(--line); background: rgba(255,255,255,.03);
+      white-space:nowrap;
+    }
+    .big{font-weight:900;font-size:16px}
+    .bar{flex:1; min-width:200px; height:9px; border-radius:999px; overflow:hidden; border:1px solid var(--line);
+      background: rgba(255,255,255,.07);}
+    .bar>div{height:100%; width:0%;
+      background: linear-gradient(90deg, rgba(54,211,153,.75), rgba(120,160,255,.75));
+      transition: width 180ms ease;}
+
+    .card{
+      border-radius:16px; overflow:hidden;
+      background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.03));
+      border:1px solid var(--line);
+      box-shadow:0 16px 46px rgba(0,0,0,.30);
+      margin-top:10px;
+    }
+    .hdr{
+      padding:12px 14px; border-bottom:1px solid var(--line);
+      background:linear-gradient(180deg,rgba(255,255,255,.06),transparent);
+      display:flex; justify-content:space-between; gap:10px; align-items:flex-start; flex-wrap:wrap;
+    }
+    .title{font-weight:900}
+    .sub{margin-top:6px;color:var(--muted);font-size:12px;line-height:1.35}
+    .main{padding:12px 14px}
+
+    .btnRow{display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin: 4px 0 10px;}
+    button{
+      appearance:none; border:none; cursor:pointer;
+      padding:10px 12px; border-radius:12px; color:var(--text);
+      background:rgba(255,255,255,.06); border:1px solid var(--line);
+      box-shadow:0 10px 26px rgba(0,0,0,.22); font-weight:800;
+    }
+    button.primary{background:rgba(120,160,255,.18); border-color:rgba(120,160,255,.30)}
+
+    /* 矢印ライト（小さめ＆収まり優先） */
+    .grid{
+      display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;
+      width:min(520px, 100%);
+      margin: 0 auto;
+      user-select:none;
+    }
+    .pad{
+      aspect-ratio:1/1; border-radius:16px; border:1px solid var(--line);
+      background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02));
+      display:flex; align-items:center; justify-content:center; position:relative; overflow:hidden;
+      cursor:pointer;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    .pad:active{transform: translateY(1px)}
+    .pad.empty{background:transparent;border-color:transparent; cursor:default}
+    .pad .arrow{font-size:56px; opacity:.78; filter: drop-shadow(0 10px 18px rgba(0,0,0,.38));}
+    .pad .label{position:absolute; bottom:10px; font-size:12px; color:var(--muted);}
+    .light{
+      position:absolute; inset:-3px; border-radius:18px; pointer-events:none;
+      background:
+        radial-gradient(260px 200px at 50% 25%, rgba(120,160,255,.62), transparent 62%),
+        radial-gradient(320px 240px at 50% 80%, rgba(255,255,255,.20), transparent 65%);
+      opacity:0; transition: opacity 90ms ease;
+    }
+    .pad.on .light{opacity:1}
+    .pad.ok{outline:2px solid rgba(54,211,153,.65)}
+    .pad.ng{outline:2px solid rgba(255,92,122,.75)}
+
+    .hint{margin-top:10px;text-align:center;color:var(--muted);font-size:12px;}
+    .k{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--muted);
+      padding:4px 8px;border-radius:8px;border:1px solid var(--line);background:rgba(0,0,0,.25)}
+    .flash{position:fixed; inset:0; pointer-events:none; opacity:0; transition: opacity 120ms ease;}
+    .flash.ok{background: rgba(54,211,153,.12)}
+    .flash.ng{background: rgba(255,92,122,.12)}
+    .flash.on{opacity:1}
+    .shake{animation: shake .18s linear 0s 1;}
+    @keyframes shake{0%{transform:translateX(0)}25%{transform:translateX(-8px)}50%{transform:translateX(8px)}75%{transform:translateX(-6px)}100%{transform:translateX(0)}}
+
+    details{border:1px solid var(--line); border-radius:14px; background:rgba(0,0,0,.18); overflow:hidden}
+    summary{cursor:pointer; padding:10px 12px; font-weight:900; user-select:none}
+    .detailsBody{padding:10px 12px; border-top:1px solid var(--line)}
+    textarea{
+      width:100%; min-height:160px; resize: vertical;
+      padding:10px; border-radius:12px; border:1px solid var(--line);
+      background:rgba(0,0,0,.25); color:var(--text);
+      font-size:12px; line-height:1.5;
+      font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="flash ok" id="flashOk"></div>
+  <div class="flash ng" id="flashNg"></div>
+
+  <div class="wrap">
+    <div class="topbar">
+      <div class="topcard">
+        <div class="pill"><span style="color:var(--muted)">進捗</span><span class="big"><span id="progress">0</span> / <span id="targetLen">0</span></span></div>
+        <div class="pill"><span style="color:var(--muted)">経過</span><span class="big"><span id="timeText">0.000</span> <span style="color:var(--muted);font-weight:700">s</span></span></div>
+        <div class="bar"><div id="barFill"></div></div>
+      </div>
+    </div>
+
+    <section class="card" id="mainCard">
+      <div class="hdr">
+        <div>
+          <div class="title">セット追従課題（ランダム16セット / タップ対応）</div>
+          <div class="sub">
+            矢印キー or タップで入力。入力後0.5秒受付停止。ミスで最初から（仕様）。
+          </div>
+        </div>
+        <div class="pill"><span style="color:var(--muted)">状態</span><span class="big" id="stateText">待機</span></div>
+      </div>
+
+      <div class="main">
+        <div class="btnRow">
+          <button class="primary" id="btnStart">スタート</button>
+          <button id="btnRestart">リスタート</button>
+          <button id="btnCopy">ログをコピー</button>
+        </div>
+
+        <div class="grid">
+          <div class="pad empty"></div>
+          <div class="pad" id="padUp" data-key="ArrowUp"><div class="light"></div><div class="arrow">↑</div><div class="label">UP</div></div>
+          <div class="pad empty"></div>
+          <div class="pad" id="padLeft" data-key="ArrowLeft"><div class="light"></div><div class="arrow">←</div><div class="label">LEFT</div></div>
+          <div class="pad empty"></div>
+          <div class="pad" id="padRight" data-key="ArrowRight"><div class="light"></div><div class="arrow">→</div><div class="label">RIGHT</div></div>
+          <div class="pad empty"></div>
+          <div class="pad" id="padDown" data-key="ArrowDown"><div class="light"></div><div class="arrow">↓</div><div class="label">DOWN</div></div>
+          <div class="pad empty"></div>
+        </div>
+
+        <div class="hint"><span class="k">↑ ↓ ← →</span> / タップで操作</div>
+
+        <!-- ログは折りたたみ -->
+        <details style="margin-top:12px;">
+          <summary>ログ（研究者用）を表示</summary>
+          <div class="detailsBody">
+            <textarea id="logArea" readonly></textarea>
+          </div>
+        </details>
+      </div>
+    </section>
+  </div>
+
+<script>
+(() => {
+  const CONFIG = { cooldownMs: 500, lightOnMs: 130 };
+
+  const pads = {
+    ArrowUp: document.getElementById("padUp"),
+    ArrowDown: document.getElementById("padDown"),
+    ArrowLeft: document.getElementById("padLeft"),
+    ArrowRight: document.getElementById("padRight"),
+  };
+  const progressEl = document.getElementById("progress");
+  const targetLenEl = document.getElementById("targetLen");
+  const barFillEl = document.getElementById("barFill");
+  const timeTextEl = document.getElementById("timeText");
+  const stateText = document.getElementById("stateText");
+  const logArea = document.getElementById("logArea");
+  const mainCard = document.getElementById("mainCard");
+  const flashOk = document.getElementById("flashOk");
+  const flashNg = document.getElementById("flashNg");
+  const btnStart = document.getElementById("btnStart");
+  const btnRestart = document.getElementById("btnRestart");
+  const btnCopy = document.getElementById("btnCopy");
+
+  // ---- audio
+  let audioCtx = null;
+  function ensureAudio(){ if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+  function beep({freq=440, duration=0.08, type="sine", gain=0.05}){
+    if (!audioCtx) return;
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = type; o.frequency.value = freq; g.gain.value = gain;
+    o.connect(g).connect(audioCtx.destination);
+    o.start(); o.stop(audioCtx.currentTime + duration);
+  }
+  function soundCorrect(){
+    ensureAudio();
+    beep({freq: 660, duration: 0.06, type:"triangle", gain:0.06});
+    setTimeout(() => beep({freq: 880, duration: 0.07, type:"triangle", gain:0.06}), 70);
+  }
+  function soundWrong(){
+    ensureAudio();
+    beep({freq: 160, duration: 0.10, type:"sawtooth", gain:0.05});
+    setTimeout(() => beep({freq: 120, duration: 0.10, type:"sawtooth", gain:0.05}), 110);
+  }
+  function soundInvalid(){ ensureAudio(); beep({freq: 220, duration: 0.05, type:"square", gain:0.03}); }
+
+  // ---- UI helpers
+  function flash(el){ el.classList.add("on"); setTimeout(()=>el.classList.remove("on"), 140); }
+  function lightKey(key){
+    const pad = pads[key]; if (!pad) return;
+    pad.classList.add("on");
+    setTimeout(()=>pad.classList.remove("on"), CONFIG.lightOnMs);
+  }
+  function markPad(key, ok){
+    const pad = pads[key]; if (!pad) return;
+    pad.classList.add(ok ? "ok" : "ng");
+    setTimeout(()=>pad.classList.remove(ok ? "ok" : "ng"), 220);
+  }
+  function shakeCard(){
+    mainCard.classList.remove("shake");
+    void mainCard.offsetWidth;
+    mainCard.classList.add("shake");
+  }
+  function setStateLabel(t){ stateText.textContent = t; }
+  function arrows(k){ return ({ArrowUp:"↑",ArrowDown:"↓",ArrowLeft:"←",ArrowRight:"→"}[k] ?? k); }
+
+  // ---- keyboard simultaneous press guard
+  const pressed = new Set();
+  let acceptInput = true;
+  function lockInput(){ acceptInput=false; setTimeout(()=>{ acceptInput=true; }, CONFIG.cooldownMs); }
+  function isArrowKey(k){ return (k==="ArrowUp"||k==="ArrowDown"||k==="ArrowLeft"||k==="ArrowRight"); }
+  function isSimultaneousPress(currentKey){
+    for (const k of pressed){ if (k !== currentKey && isArrowKey(k)) return true; }
+    return false;
+  }
+
+  // ---- sets (same as previous build)
+  const SET_A1_STR =
+"↑↑↑↑↑↑↑←←←←←←←↓↓↓↓↓↓↓→→→→→→→↑←↑←↑←↑←↑←↑←↑←←↓←↓←↓←↓←↓←↓←↓↓→↓→↓→↓→↓→↓→↓→→↑→↑→↑→↑→↑→↑→↑↑←↓↑←↓↑←↓↑←↓↑←↓↑←↓↑←↓←↓→←↓→←↓→←↓→←↓→←↓→←↓→↓→↑↓→↑↓→↑↓→↑↓→↑↓→↑↓→↑→↑←→↑←→↑←→↑←→↑←→↑←→↑←↑←↓→↑←↓→↑←↓→↑←↓→↑←↓→↑←↓→↑←↓→";
+  const SET_B1_STR =
+"↑←↓→↑←↓→↑←↓→↑←↓→↑←↓→↑←↓→↑←↓→↑←↓↑←↓↑←↓↑←↓↑←↓↑←↓↑←↓←↓→←↓→←↓→←↓→←↓→←↓→←↓→↓→↑↓→↑↓→↑↓→↑↓→↑↓→↑↓→↑→↑←→↑←→↑←→↑←→↑←→↑←→↑←↑←↑←↑←↑←↑←↑←↑←←↓←↓←↓←↓←↓←↓←↓↓→↓→↓→↓→↓→↓→↓→→↑→↑→↑→↑→↑→↑→↑↑↑↑↑↑↑↑←←←←←←←↓↓↓↓↓↓↓→→→→→→→";
+
+  function strToKeys(str){
+    const map = {"↑":"ArrowUp","↓":"ArrowDown","←":"ArrowLeft","→":"ArrowRight"};
+    const out = [];
+    for (const ch of str){ if (map[ch]) out.push(map[ch]); }
+    return out;
+  }
+  function rotateLeft(key){
+    const m = {ArrowUp:"ArrowLeft", ArrowLeft:"ArrowDown", ArrowDown:"ArrowRight", ArrowRight:"ArrowUp"};
+    return m[key];
+  }
+  function rotateRight(key){
+    const m = {ArrowUp:"ArrowRight", ArrowRight:"ArrowDown", ArrowDown:"ArrowLeft", ArrowLeft:"ArrowUp"};
+    return m[key];
+  }
+  function opposite(key){
+    const m = {ArrowUp:"ArrowDown", ArrowDown:"ArrowUp", ArrowLeft:"ArrowRight", ArrowRight:"ArrowLeft"};
+    return m[key];
+  }
+  function swapLR(key){
+    const m = {ArrowLeft:"ArrowRight", ArrowRight:"ArrowLeft", ArrowUp:"ArrowUp", ArrowDown:"ArrowDown"};
+    return m[key];
+  }
+
+  const A1 = strToKeys(SET_A1_STR);
+  const B1 = strToKeys(SET_B1_STR);
+  const A2 = A1.map(rotateLeft),  A3 = A1.map(rotateRight),  A4 = A1.map(opposite);
+  const B2 = B1.map(rotateLeft),  B3 = B1.map(rotateRight),  B4 = B1.map(opposite);
+
+  const SETS = [
+    {name:"セットA1",  keys:A1},{name:"セットA2",keys:A2},{name:"セットA3",keys:A3},{name:"セットA4",keys:A4},
+    {name:"セットB1",  keys:B1},{name:"セットB2",keys:B2},{name:"セットB3",keys:B3},{name:"セットB4",keys:B4},
+    {name:"セットA1’", keys:A1.map(swapLR)},{name:"セットA2’",keys:A2.map(swapLR)},{name:"セットA3’",keys:A3.map(swapLR)},{name:"セットA4’",keys:A4.map(swapLR)},
+    {name:"セットB1’", keys:B1.map(swapLR)},{name:"セットB2’",keys:B2.map(swapLR)},{name:"セットB3’",keys:B3.map(swapLR)},{name:"セットB4’",keys:B4.map(swapLR)},
+  ];
+  function pickRandomSet(){ return SETS[Math.floor(Math.random()*SETS.length)]; }
+
+  // ---- runtime
+  let running=false, finished=false;
+  let selectedSet=null;
+  let pos=0, trial=0;
+  let t0=null, rafId=null;
+  const logs = [];
+
+  function updateTop(){
+    progressEl.textContent = String(pos);
+    const total = selectedSet ? selectedSet.keys.length : 0;
+    targetLenEl.textContent = String(total);
+    const pct = total ? Math.max(0, Math.min(1, pos / total)) : 0;
+    barFillEl.style.width = (pct * 100).toFixed(1) + "%";
+  }
+  function startTimer(){
+    if (rafId) cancelAnimationFrame(rafId);
+    const tick = () => {
+      if (!running || !t0) return;
+      timeTextEl.textContent = ((performance.now()-t0)/1000).toFixed(3);
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+  }
+  function stopTimer(){ if (rafId) cancelAnimationFrame(rafId); rafId=null; }
+
+  function updateLog(){
+    logArea.value = JSON.stringify({
+      meta: { selected_set: selectedSet ? selectedSet.name : null, set_length: selectedSet ? selectedSet.keys.length : null, cooldownMs: CONFIG.cooldownMs },
+      summary: { trials: trial, progressAtEnd: pos, duration_ms: finished && t0 ? Math.round(performance.now()-t0) : null },
+      trials: logs
+    }, null, 2);
+  }
+
+  function resetAll(){
+    running=false; finished=false;
+    acceptInput=true; pressed.clear();
+    selectedSet=null; pos=0; trial=0; t0=null;
+    logs.length=0;
+    timeTextEl.textContent="0.000";
+    setStateLabel("待機");
+    stopTimer();
+    updateTop(); updateLog();
+  }
+
+  function start(){
+    resetAll();
+    selectedSet = pickRandomSet();
+    running=true;
+    setStateLabel("実行中");
+    updateTop(); updateLog();
+  }
+
+  function finish(){
+    running=false; finished=true;
+    setStateLabel("終了");
+    stopTimer();
+    updateTop(); updateLog();
+    ensureAudio();
+    beep({freq: 740, duration:0.08, type:"triangle", gain:0.06});
+    setTimeout(()=>beep({freq: 988, duration:0.10, type:"triangle", gain:0.06}), 90);
+  }
+
+  function handleAttempt(key, source){
+    if (!running || finished) return;
+    if (!pads[key]) return;
+    if (!acceptInput) return;
+
+    if (source === "keyboard" && isSimultaneousPress(key)){
+      soundInvalid(); flash(flashNg); shakeCard(); return;
+    }
+
+    if (!t0){ t0 = performance.now(); startTimer(); }
+
+    trial += 1;
+    lightKey(key);
+
+    const expected = selectedSet.keys[pos];
+    const ok = (key === expected);
+
+    if (ok){
+      pos += 1;
+      soundCorrect(); flash(flashOk); markPad(key, true);
+      logs.push({trial, input:key, inputArrow:arrows(key), ok:true, expectedKey:expected, expectedArrow:arrows(expected), posAfter:pos, source, t_ms:Math.round(performance.now()-t0)});
+      updateTop(); updateLog(); lockInput();
+      if (pos >= selectedSet.keys.length) finish();
+      return;
+    }
+
+    soundWrong(); flash(flashNg); markPad(key, false); shakeCard();
+    logs.push({trial, input:key, inputArrow:arrows(key), ok:false, expectedKey:expected, expectedArrow:arrows(expected), posAfter:0, source, t_ms:Math.round(performance.now()-t0)});
+    pos = 0;
+    updateTop(); updateLog(); lockInput();
+  }
+
+  // keyboard
+  window.addEventListener("keydown", (e) => {
+    if (!isArrowKey(e.key)) return;
+    e.preventDefault();
+    if (!e.repeat) pressed.add(e.key);
+    handleAttempt(e.key, "keyboard");
+  }, {passive:false});
+  window.addEventListener("keyup", (e) => {
+    if (!isArrowKey(e.key)) return;
+    e.preventDefault();
+    pressed.delete(e.key);
+  }, {passive:false});
+
+  // tap/click
+  for (const key of Object.keys(pads)){
+    const el = pads[key];
+    el.addEventListener("pointerdown", (e) => {
+      if (!el.dataset.key) return;
+      e.preventDefault();
+      handleAttempt(el.dataset.key, "tap");
+    });
+  }
+
+  // buttons
+  btnStart.addEventListener("click", async () => {
+    ensureAudio();
+    if (audioCtx && audioCtx.state === "suspended") await audioCtx.resume();
+    start();
+  });
+  btnRestart.addEventListener("click", async () => {
+    ensureAudio();
+    if (audioCtx && audioCtx.state === "suspended") await audioCtx.resume();
+    start();
+  });
+  btnCopy.addEventListener("click", async () => {
+    try{
+      await navigator.clipboard.writeText(logArea.value);
+      ensureAudio();
+      if (audioCtx && audioCtx.state === "suspended") await audioCtx.resume();
+      beep({freq: 1046, duration:0.06, type:"triangle", gain:0.05});
+    }catch{
+      alert("コピーに失敗しました。");
+    }
+  });
+
+  resetAll();
+})();
+</script>
+</body>
+</html>
