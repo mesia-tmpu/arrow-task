@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>セット追従課題（ランダムセット / クリック対応）</title>
+  <title>セット追従課題（A/Bのみ・結果画面＋自由記述）</title>
   <style>
     :root{
       --bg:#0b1020;--text:#e9eefc;--muted:#aeb8da;--line:rgba(255,255,255,.10);
@@ -201,7 +201,6 @@
     .countNum{font-size:min(96px, 20vw);font-weight:1000;line-height:1;margin:6px 0 10px;}
     .countSub{color:var(--muted); font-size:13px; line-height:1.35}
 
-    /* 結果画面（終了時） */
     .result{
       position:fixed; inset:0;
       display:flex; align-items:center; justify-content:center;
@@ -235,11 +234,7 @@
     .resultActions{display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; margin-top:12px}
     .ruleBox{margin-top:12px}
     .ruleBox .resultLabel{margin-bottom:6px}
-    #ruleGuess{
-      min-height: 120px;
-      font-size: 13px;
-      line-height: 1.6;
-    }
+    #ruleGuess{min-height: 120px; font-size: 13px; line-height: 1.6;}
 
     .shake{animation: shake .18s linear 0s 1;}
     @keyframes shake{0%{transform:translateX(0)}25%{transform:translateX(-8px)}50%{transform:translateX(8px)}75%{transform:translateX(-6px)}100%{transform:translateX(0)}}
@@ -260,7 +255,6 @@
     </div>
   </div>
 
-  <!-- 結果画面 -->
   <div class="result" id="result">
     <div class="resultCard">
       <div class="resultTitle">結果（記録）</div>
@@ -312,7 +306,7 @@
     <section class="card" id="mainCard">
       <div class="hdr">
         <div>
-          <div class="title">セット追従課題（結果画面＋自由記述）</div>
+          <div class="title">セット追従課題（セットA/Bのみ）</div>
           <div class="sub">
             入力後は<strong>1秒間</strong>受付停止（同時押し無効）。進捗や残りは表示しません。<br>
             SPACE/スタート→3秒カウントダウン。正誤は✓/✕とボタン発光で提示。
@@ -386,7 +380,7 @@
 <script>
 (() => {
   const CONFIG = {
-    cooldownMs: 1000,     // ★ 1秒に変更
+    cooldownMs: 1000,
     lightOnMs: 130,
     countdownSec: 3,
     judgeFxMs: 900,
@@ -419,7 +413,6 @@
   const countdownEl = document.getElementById("countdown");
   const countNumEl = document.getElementById("countNum");
 
-  // Result screen
   const resultEl = document.getElementById("result");
   const resTime = document.getElementById("resTime");
   const resBest = document.getElementById("resBest");
@@ -490,7 +483,7 @@
     cutinTimer = setTimeout(()=>cutin.classList.remove("show"), CONFIG.judgeFxMs);
   }
 
-  // ---- keyboard simultaneous press guard
+  // ---- input guards
   const pressed = new Set();
   let acceptInput = true;
   let countingDown = false;
@@ -501,13 +494,11 @@
     return false;
   }
 
-  // ---- sets (A/B/C)
+  // ---- sets (A/B only)
   const SET_A1_STR =
 "↑↑↑↑↑↑↑←←←←←←←↓↓↓↓↓↓↓→→→→→→→↑←↑←↑←↑←↑←↑←↑←←↓←↓←↓←↓←↓←↓←↓↓→↓→↓→↓→↓→↓→↓→→↑→↑→↑→↑→↑→↑→↑↑←↓↑←↓↑←↓↑←↓↑←↓↑←↓↑←↓←↓→←↓→←↓→←↓→←↓→←↓→←↓→↓→↑↓→↑↓→↑↓→↑↓→↑↓→↑↓→↑→↑←→↑←→↑←→↑←→↑←→↑←→↑←↑←↓→↑←↓→↑←↓→↑←↓→↑←↓→↑←↓→↑←↓→";
   const SET_B1_STR =
 "↑←↓→↑←↓→↑←↓→↑←↓→↑←↓→↑←↓→↑←↓→↑←↓↑←↓↑←↓↑←↓↑←↓↑←↓↑←↓←↓→←↓→←↓→←↓→←↓→←↓→←↓→↓→↑↓→↑↓→↑↓→↑↓→↑↓→↑↓→↑→↑←→↑←→↑←→↑←→↑←→↑←→↑←↑←↑←↑←↑←↑←↑←↑←←↓←↓←↓←↓←↓←↓←↓↓→↓→↓→↓→↓→↓→↓→→↑→↑→↑→↑→↑→↑→↑↑↑↑↑↑↑↑←←←←←←←↓↓↓↓↓↓↓→→→→→→→";
-  const SET_C1_STR =
-"↑←↓↑→↑↑←↓↑→↑↑←↓↑→↑↑←↓↑→↑↑←↓↑→↑↑←↓↑→↑↑←↓↑→↑↑←↓↑→↑↑→↑←→↓→→↑←→↓→→↑←→↓→→↑←→↓→→↑←→↓→→↑←→↓→→↑←→↓→→↑←→↓→→↓→↑↓←↓↓→↑↓←↓↓→↑↓←↓↓→↑↓←↓↓→↑↓←↓↓→↑↓←↓↓→↑↓←↓↓→↑↓←↓↓←↓→←↑←←↓→←↑←←↓→←↑←←↓→←↑←←↓→←↑←←↓→←↑←←↓→←↑←←↓→←↑←←↓→←↑←←";
 
   function strToKeys(str){
     const map = {"↑":"ArrowUp","↓":"ArrowDown","←":"ArrowLeft","→":"ArrowRight"};
@@ -534,19 +525,15 @@
 
   const A1 = strToKeys(SET_A1_STR);
   const B1 = strToKeys(SET_B1_STR);
-  const C1 = strToKeys(SET_C1_STR);
 
   const A2 = A1.map(rotateLeft),  A3 = A1.map(rotateRight),  A4 = A1.map(opposite);
   const B2 = B1.map(rotateLeft),  B3 = B1.map(rotateRight),  B4 = B1.map(opposite);
-  const C2 = C1.map(rotateLeft),  C3 = C1.map(rotateRight),  C4 = C1.map(opposite);
 
   const SETS = [
     {name:"セットA1",  keys:A1},{name:"セットA2",keys:A2},{name:"セットA3",keys:A3},{name:"セットA4",keys:A4},
     {name:"セットB1",  keys:B1},{name:"セットB2",keys:B2},{name:"セットB3",keys:B3},{name:"セットB4",keys:B4},
-    {name:"セットC1",  keys:C1},{name:"セットC2",keys:C2},{name:"セットC3",keys:C3},{name:"セットC4",keys:C4},
     {name:"セットA1’", keys:A1.map(swapLR)},{name:"セットA2’",keys:A2.map(swapLR)},{name:"セットA3’",keys:A3.map(swapLR)},{name:"セットA4’",keys:A4.map(swapLR)},
     {name:"セットB1’", keys:B1.map(swapLR)},{name:"セットB2’",keys:B2.map(swapLR)},{name:"セットB3’",keys:B3.map(swapLR)},{name:"セットB4’",keys:B4.map(swapLR)},
-    {name:"セットC1’", keys:C1.map(swapLR)},{name:"セットC2’",keys:C2.map(swapLR)},{name:"セットC3’",keys:C3.map(swapLR)},{name:"セットC4’",keys:C4.map(swapLR)},
   ];
   function pickRandomSet(){ return SETS[Math.floor(Math.random()*SETS.length)]; }
 
@@ -565,7 +552,7 @@
   let startedAtISO=null;
 
   let streak=0;
-  let ruleGuessText=""; // ★ 自由記述（ログに反映）
+  let ruleGuessText="";
   const logs = [];
   function updateStreakUI(){ streakTextEl.textContent = String(streak); }
 
@@ -600,7 +587,6 @@
     setStateLabel("待機");
     stopTimer();
     streak = 0; updateStreakUI();
-    // 自由記述は試行ごとにリセット（履歴としてはhistoryに残す）
     ruleGuessText = "";
     ruleGuessEl.value = "";
     updateLog();
@@ -666,12 +652,22 @@
     updateLog();
   }
 
+  function showResult({durationMs}){
+    resTime.textContent = (durationMs == null) ? "—" : (durationMs/1000).toFixed(3) + " s";
+    resBest.textContent = (sessionRecords.best_ms == null) ? "—" : (sessionRecords.best_ms/1000).toFixed(3) + " s";
+    resSet.textContent  = selectedSet ? selectedSet.name : "—";
+    resStreak.textContent = String(streak);
+    ruleGuessEl.value = ruleGuessText || "";
+    resultEl.classList.add("on");
+  }
+  function hideResult(){
+    resultEl.classList.remove("on");
+  }
+
   async function beginAttemptWithCountdown(){
     if (countingDown) return;
 
-    // 結果画面が出ていたら閉じる（次の試行へ）
     hideResult();
-
     if (running && !finished){
       recordAbortedAttempt("restart_during_run");
     }
@@ -682,21 +678,6 @@
     acceptInput = true;
 
     beginAttemptCore();
-  }
-
-  function showResult({durationMs}){
-    resTime.textContent = (durationMs == null) ? "—" : (durationMs/1000).toFixed(3) + " s";
-    resBest.textContent = (sessionRecords.best_ms == null) ? "—" : (sessionRecords.best_ms/1000).toFixed(3) + " s";
-    resSet.textContent  = selectedSet ? selectedSet.name : "—";
-    resStreak.textContent = String(streak);
-
-    // 自由記述はその試行の内容を表示（編集可）
-    ruleGuessEl.value = ruleGuessText || "";
-
-    resultEl.classList.add("on");
-  }
-  function hideResult(){
-    resultEl.classList.remove("on");
   }
 
   function finishAttempt(){
@@ -726,8 +707,6 @@
     }
     updateRecordsUI();
     updateLog();
-
-    // ★ 終了時：結果画面を表示
     showResult({durationMs});
 
     ensureAudio();
@@ -740,7 +719,6 @@
     if (countingDown) return;
     if (!pads[key]) return;
     if (!acceptInput) return;
-    // 結果画面中は入力無効
     if (resultEl.classList.contains("on")) return;
 
     if (source === "keyboard" && isSimultaneousPress(key)){
@@ -778,7 +756,6 @@
       return;
     }
 
-    // ミス：最初から＋streak=0
     streak = 0; updateStreakUI();
 
     soundWrong();
@@ -800,15 +777,12 @@
     beginAttemptWithCountdown();
   }
 
-  // keyboard
   window.addEventListener("keydown", (e) => {
-    // 結果画面が出ているときは SPACE/Enter で閉じる（任意）
     if (resultEl.classList.contains("on") && (e.code==="Space" || e.key===" " || e.key==="Enter")){
       e.preventDefault();
       hideResult();
       return;
     }
-
     if (e.key === " " || e.code === "Space"){
       e.preventDefault();
       requestStart();
@@ -826,7 +800,6 @@
     pressed.delete(e.key);
   }, {passive:false});
 
-  // tap/click pads
   for (const key of Object.keys(pads)){
     const el = pads[key];
     el.addEventListener("pointerdown", (e) => {
@@ -836,7 +809,6 @@
     });
   }
 
-  // buttons
   btnStart.addEventListener("click", () => requestStart());
   btnRestart.addEventListener("click", () => requestStart());
 
@@ -851,12 +823,10 @@
     }
   });
 
-  // ---- Result screen actions
   function saveRuleGuess(){
     ruleGuessText = (ruleGuessEl.value || "").trim();
-    updateLog();
 
-    // history内の「最新の完了試行」にも反映（あとから書き換えてもログが追従するように）
+    // history内の「該当試行」にも反映
     for (let i = sessionRecords.history.length - 1; i >= 0; i--){
       const h = sessionRecords.history[i];
       if (h && h.attemptNo === attemptNo){
@@ -872,15 +842,12 @@
   }
 
   btnSaveRule.addEventListener("click", saveRuleGuess);
-
-  // 入力中も随時反映（自動保存）
   ruleGuessEl.addEventListener("input", () => {
     ruleGuessText = (ruleGuessEl.value || "").trim();
     updateLog();
   });
 
   btnCopyResult.addEventListener("click", async () => {
-    // コピー前に確実に保存
     saveRuleGuess();
     try{
       await navigator.clipboard.writeText(logArea.value);
@@ -897,7 +864,6 @@
     hideResult();
   });
 
-  // init
   hardResetRuntimeOnly();
   updateRecordsUI();
 })();
